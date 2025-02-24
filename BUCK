@@ -1,11 +1,10 @@
 load("//minecraft_version.bzl", "minecraft_version")
 load("//minecraft_assets.bzl", "minecraft_assets")
 
-# We have to update the sha1 of this file whenever mc updates anyways so let's just iterate with a
-# static one for now.
-# For ease of use might want to encourage people just download this once anyways since it doesn't change often...
-export_file(
-    name = 'version_manifest_v2.json',
+http_file(
+    name = "version_manifest_v2.json",
+    urls = ["https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"],
+    sha256 = "4be002d7b7946dcacb15b72cf251ae08ac8cac409dc852174b01fb0ce35ea0d4",
 )
 
 minecraft_version(

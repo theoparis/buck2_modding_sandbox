@@ -1,22 +1,25 @@
 # What
+
 This repo explores using [Buck 2](https://buck2.build), a Bazel-like build tool from Meta,
 to build Minecraft mods.
 
 The goal is to compile a working Fabric example mod, but using Buck 2, without any Gradle
 or Loom.
 
-# Why Buck 2
+## Why Buck 2
+
 I wanted something with the following properties:
-* Reproducible/Auditable: Recent security events have shown that supply chain compromise in
+
+- Reproducible/Auditable: Recent security events have shown that supply chain compromise in
   Minecraft modding is a real and massive risk.
-* Efficient: Gradle spinning = not fun.
-* Deterministic/Stable: No nuking your cache randomly and praying. The goal is to be
+- Efficient: Gradle spinning = not fun.
+- Deterministic/Stable: No nuking your cache randomly and praying. The goal is to be
   perfectly reliable.
 
 Buck 2 descends from Buck 1 and further was inspired by Blaze (Bazel's closed-source
 sibling). All ofthe build systems in this family value the above properties.
 
-# Why not Bazel?
+## Why not Bazel?
 
 Of the hermetic Blaze-like build systems, Bazel is ths most mature and widely used, but a
 couple reasons made be try Buck 2:
@@ -31,20 +34,22 @@ couple reasons made be try Buck 2:
    fast. Bazel is written in Java, like Buck 1, which can chug sometimes.
 3. I work at Meta, so good old homerism :)
 
-# Needed tools
-* Java toolchain
-  * Unfortunately, Buck2's Java support is very immature as it has a lot of internal-only
+## Needed tools
+
+- Java toolchain
+  - Unfortunately, Buck2's Java support is very immature as it has a lot of internal-only
     minutiae. It's probably easier to reimplement the java rules we need ourselves from
     first-principles (aka reading the `javac` manual page).
-* jar merging: JarMerger (part of Fabric Loom)
-  * Extract, vendor, and build the Java code as part of the mod build, probably
-* remapping: TinyRemapper (standalone binary releases on Fabric Maven)
-* mappings: Yarn/Intermediary (standalone releases on Fabric Maven)
-* Mixin
-* IDE project generation: ?
-  * See what Brachyura does, probably
+- jar merging: JarMerger (part of Fabric Loom)
+  - Extract, vendor, and build the Java code as part of the mod build, probably
+- remapping: TinyRemapper (standalone binary releases on Fabric Maven)
+- mappings: Yarn/Intermediary (standalone releases on Fabric Maven)
+- Mixin
+- IDE project generation: ?
+  - See what Brachyura does, probably
 
-# Implementation Notes
+## Implementation Notes
+
 Buck 2's documentation can be kind of opaque, so here's some random notes.
 
 Targets are the thing that you can request to be built.
@@ -59,18 +64,14 @@ rules.
 `artifact` values are not actually a compiled thing, they are tokens representing
 something that will eventually be compiled or created.
 
-# Other notes:
-https://cdn.discordapp.com/attachments/404671932072591380/1130399524955902023/CompilationOfAMod.png
+## Scoping and todo
 
-# Scoping and todo
 This is an experimental project, so we're going to take some shortcuts:
 
-* Assume Minecraft 1.20.1 or later (no support for manifest/assets/library quirks from
+- Assume Minecraft 1.21.4 or later (no support for manifest/assets/library quirks from
   earlier versions)
-* Assume build executes on Linux x86_64 (though make an attempt to be portable by using
-  tools written in pure Java, for example)
-* No multiloader or mojmap/parchment support
-* Ok to vendor or manually write out dependencies instead of parsing maven POM's
+- No multiloader or mojmap/parchment support
+- Ok to vendor or manually write out dependencies instead of parsing maven POM's
 
 - [x] version manifest and version json parsing
 - [x] asset downloading
@@ -87,6 +88,7 @@ This is an experimental project, so we're going to take some shortcuts:
 - [ ] Make sure final jar seems to run
 
 Main goal accomplished by here! Stretch goals:
+
 - [ ] Demonstrate consuming intermediary-mapped deps
 - [ ] IDE project generation
 - [ ] Access Widener support
