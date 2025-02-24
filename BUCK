@@ -9,12 +9,12 @@ export_file(
 )
 
 minecraft_version(
-    name = "1.20.1",
+    name = "1.21.4",
     version_manifest = ":version_manifest_v2.json",
-    requested_version = "1.20.1",
+    requested_version = "1.21.4",
 )
 
 minecraft_assets(
-    name = "1.20.1-assets",
-    minecraft_version = ":1.20.1",
+    name = "1.21.4-assets",
+    minecraft_version = ":1.21.4",
 )
