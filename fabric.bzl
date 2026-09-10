@@ -73,6 +73,7 @@ def fabric_mod(
         srcs = [],
         resources = [],
         fabric_mod_json = None,
+        mixin_configs = {},
         deps = [],
         compile_only_deps = [],
         java_version = "21",
@@ -87,8 +88,21 @@ def fabric_mod(
     `compile_only_deps` (e.g. a minecraft_merged_jar() or fabric_loader()) are
     only used to build the classpath for javac; they are not bundled into the
     output jar since Fabric Loader supplies the game + itself at runtime.
+
+    `mixin_configs` is a dict of {jar-root dest path: source} for Mixin config
+    JSON files (e.g. {"examplemod.mixins.json": "src/main/resources/examplemod.mixins.json"}).
+    You still need to list each one under fabric.mod.json's top-level "mixins"
+    array yourself - Fabric Loader reads that to know which configs to apply;
+    this just gets the file packaged at the right place in the jar. Sponge
+    Mixin + ASM + MixinExtras are already on the compile/runtime classpath
+    transitively via fabric_loader (see compile_only_deps), no extra wiring
+    needed for @Mixin classes to compile or run. Mixin's annotation processor
+    (refmap generation) is intentionally not wired up here - it's only needed
+    when mixin targets are remapped/obfuscated, which they aren't in this
+    repo's unobfuscated snapshot; mixin target class/method names are just
+    the real Mojang-mapped names.
     """
-    resource_map = {}
+    resource_map = dict(mixin_configs)
     if fabric_mod_json:
         resource_map["fabric.mod.json"] = fabric_mod_json
 
@@ -97,19 +111,18 @@ def fabric_mod(
         srcs = srcs,
         resources = resources,
         resource_map = resource_map,
-        deps = deps,
-        prebuilt_jars = [d for dep in compile_only_deps for d in _classpath_only(dep)],
+        # compile_only_deps go through `deps`, not `prebuilt_jars`: java_library's
+        # output jar is only ever packaged from *this* rule's own srcs/resources,
+        # never from deps' jars, so routing them through `deps` still gets us
+        # "compile classpath only, nothing bundled" - and, unlike prebuilt_jars
+        # (a flat attrs.source list), `deps` pulls in each dep's *transitive*
+        # JavaLibraryInfo.classpath too. That matters here: fabric_loader()'s
+        # own classpath includes its runtime deps (Sponge Mixin, ASM,
+        # MixinExtras), which @Mixin-annotated mod code needs to compile against.
+        deps = deps + compile_only_deps,
         java_version = java_version,
         visibility = visibility,
     )
-
-def _classpath_only(dep):
-    # fabric_mod's compile_only_deps are plain deps at the macro layer (we
-    # don't have access to providers here, only at analysis time), so we just
-    # forward them through prebuilt_jars, which accepts attrs.source() -
-    # i.e. deps whose DefaultInfo output is a jar. minecraft_merged_jar() and
-    # fabric_loader() both qualify.
-    return [dep]
 
 def _fabric_dev_launcher_impl(ctx: AnalysisContext) -> list[Provider]:
     loader_info = ctx.attrs.fabric_loader[FabricLoaderInfo]

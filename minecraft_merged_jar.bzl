@@ -1,3 +1,4 @@
+load("//java_library.bzl", "JavaLibraryInfo")
 load("//minecraft_info.bzl", "MinecraftInfo")
 
 def _minecraft_merged_jar_impl(ctx: AnalysisContext) -> list[Provider]:
@@ -16,7 +17,10 @@ def _minecraft_merged_jar_impl(ctx: AnalysisContext) -> list[Provider]:
     ])
     ctx.actions.run(cmd, category = "merge_jars")
 
-    return [DefaultInfo(default_output = output)]
+    return [
+        DefaultInfo(default_output = output),
+        JavaLibraryInfo(jar = output, classpath = [output]),
+    ]
 
 minecraft_merged_jar = rule(
     doc = "Merges a minecraft_version()'s client and server jars into one jar (see tools/merge_jars.py for caveats vs. Fabric Loom's real JarMerger).",

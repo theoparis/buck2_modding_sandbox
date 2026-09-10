@@ -99,6 +99,37 @@ Both land you in a real, running game with the example mod loaded (you'll see `H
 from ExampleMod, built with Buck 2!` in the log) - Fabric Loader, Sponge Mixin, and the
 vanilla game all boot normally.
 
+### Mixin support
+
+Already wired up, no extra plumbing needed - `fabric_loader()`'s own runtime
+deps (Sponge Mixin, ASM, MixinExtras) are on the transitive compile/runtime
+classpath of any `fabric_mod()` that lists it under `compile_only_deps`, so
+`@Mixin`-annotated classes compile and load out of the box.
+
+To add a mixin:
+1. Write a `@Mixin(TargetClass.class)` class using Sponge Mixin's
+   `org.spongepowered.asm.mixin.*` annotations (`@Inject`, `@ModifyVariable`, etc.) -
+   `examplemod/src/main/java/com/example/examplemod/mixin/ExampleServerMixin.java`
+   is a working example, injecting into `MinecraftServer.tickServer` and
+   logging every 200 ticks.
+2. Add a Mixin config JSON (see `examplemod.mixins.json`) listing the mixin
+   class(es), and register it via `fabric_mod(mixin_configs = {...})`, which
+   packages it at the given jar-root path.
+3. List that same config path under `fabric.mod.json`'s top-level `"mixins"`
+   array - that's how Fabric Loader discovers and applies it; `fabric_mod()`
+   doesn't infer this from `mixin_configs` automatically.
+
+One simplification vs. a typical Loom setup: Mixin's annotation processor
+(refmap generation) isn't wired into `java_library()`'s javac invocation.
+Refmaps only matter for remapping mixin target references between mapping
+sets (e.g. intermediary <-> official) for obfuscated releases; this repo
+targets an unobfuscated snapshot, so mixin targets are just written directly
+against the real Mojang-mapped class/method names and Mixin applies them with
+no remapping step. If you ever target an obfuscated version, you'd need to
+add `-processor org.spongepowered.tools.mixin.MixinAnnotationProcessor` (with
+`-AoutRefMapFile=...`) to the compile step and reference the generated refmap
+from the mixin config's `"refmap"` key.
+
 Caveat for `run_client` on Linux/aarch64: Mojang's version.json only ever lists an x86_64
 `natives-linux` classifier for LWJGL, so a stock client launch crashes immediately in
 native library loading on an arm64 host. LWJGL itself does publish `natives-linux-arm64`
