@@ -40,13 +40,46 @@ couple reasons made be try Buck 2:
   - Unfortunately, Buck2's Java support is very immature as it has a lot of internal-only
     minutiae. It's probably easier to reimplement the java rules we need ourselves from
     first-principles (aka reading the `javac` manual page).
+  - Concretely: `prelude//toolchains:java.bzl`'s toolchains (`javacd_toolchain`,
+    `system_java_bootstrap_toolchain`) default `jar_builder`/`zip_scrubber`/etc to sources
+    under `prelude//toolchains/android/...`. That's Buck2's vendored copy of Buck1's
+    Java/Android support, and compiling it pulls in a big tree of old Java code that
+    doesn't build cleanly on a bleeding-edge JDK. We sidestep this entirely with our own
+    toolchain and rules - see `toolchains/java.bzl` and `java_library.bzl`. It's much
+    dumber (no ABI generation, no dep-file tracking) but it's just `javac`/`jar` from
+    `$PATH`, so it builds on whatever JDK you have.
 - jar merging: JarMerger (part of Fabric Loom)
-  - Extract, vendor, and build the Java code as part of the mod build, probably
+  - Reimplemented minimally in `tools/merge_jars.py` (see caveats above).
 - remapping: TinyRemapper (standalone binary releases on Fabric Maven)
+  - Not currently used - see jar merge note above.
 - mappings: Yarn/Intermediary (standalone releases on Fabric Maven)
+  - Not currently used - see jar merge note above.
 - Mixin
 - IDE project generation: ?
   - See what Brachyura does, probably
+
+## Fabric support
+
+`fabric.bzl` provides:
+
+- `fabric_loader(name, version, sha1)`: downloads a Fabric Loader release jar from the
+  Fabric maven (used as a compile-time dep for `net.fabricmc.api.*` entrypoints).
+- `fabric_mod(name, srcs, resources, fabric_mod_json, deps, compile_only_deps, ...)`: a
+  thin macro over `java_library()` (see `java_library.bzl`) that compiles mod sources,
+  drops `fabric.mod.json` at the jar root, and keeps game/loader jars (`compile_only_deps`)
+  off the runtime classpath / out of the output jar, since Fabric Loader supplies those at
+  runtime.
+
+`minecraft_merged_jar.bzl` provides `minecraft_merged_jar(name, minecraft_version)`, which
+merges a `minecraft_version()`'s client + server jars (see caveats above).
+
+See `examplemod/` for a complete, working (if minimal) example mod built entirely with
+Buck 2 - no Gradle, no Loom, no mappings/remapping needed since this Minecraft version
+isn't obfuscated. Build it with:
+
+```
+buck2 build //examplemod:examplemod
+```
 
 ## Implementation Notes
 
@@ -77,13 +110,18 @@ This is an experimental project, so we're going to take some shortcuts:
 - [x] asset downloading
   - ish, buck2 seems to open tons of fd's which can make the download flaky
 - [x] Library downloading
-- [ ] Client/server jar merge
-- [ ] Remap to intermediary
-- [ ] Remap to named
-- [ ] Build mod against named (no mixins)
+- [x] Client/server jar merge
+  - simplified: no obfuscation to deal with for 26.3-pre-3, so this is a plain union of
+    the two jars' entries (client wins on conflict), no ASM/environment-annotation
+    stamping like real Fabric Loom does. See `tools/merge_jars.py`.
+- [x] Build mod against merged jar (no mixins)
+  - `fabric_mod()` in `fabric.bzl`, see `examplemod/` for a working example
+- [ ] Remap to intermediary / Remap to named
+  - Not needed for 26.3-pre-3: it's unobfuscated by default, so we skip Yarn/Intermediary
+    and TinyRemapper entirely for now. Would be required to support older/obfuscated
+    versions.
 - [ ] Support mixins
 - [ ] Process resources (insert mixin refmap name)
-- [ ] Remap to intermediary
 - [ ] Assemble final jar
 - [ ] Make sure final jar seems to run
 

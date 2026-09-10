@@ -3,3 +3,9 @@ export_file(
     src = "merge_jars.py",
     visibility = ["PUBLIC"],
 )
+
+export_file(
+    name = "fabric_dev_launcher.sh",
+    src = "fabric_dev_launcher.sh",
+    visibility = ["PUBLIC"],
+)

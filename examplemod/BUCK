@@ -1,4 +1,4 @@
-load("//fabric.bzl", "fabric_mod")
+load("//fabric.bzl", "fabric_dev_launcher", "fabric_mod")
 
 export_file(
     name = "fabric.mod.json",
@@ -14,4 +14,13 @@ fabric_mod(
         "//:fabric-loader",
     ],
     visibility = ["PUBLIC"],
+)
+
+fabric_dev_launcher(
+    name = "run_server",
+    mod = ":examplemod",
+    minecraft_version = "//:26.3-pre-3",
+    merged_jar = "//:26.3-pre-3-merged",
+    fabric_loader = "//:fabric-loader",
+    side = "server",
 )

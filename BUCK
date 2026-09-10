@@ -12,6 +12,7 @@ minecraft_version(
     name = "26.3-pre-3",
     version_manifest = ":version_manifest_v2.json",
     requested_version = "26.3-pre-3",
+    visibility = ["PUBLIC"],
 )
 
 minecraft_assets(
