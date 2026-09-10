@@ -76,6 +76,15 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
     client_jar_artifact = ctx.actions.declare_output("client.jar", has_content_based_path = False)
     server_jar_artifact = ctx.actions.declare_output("server.jar", has_content_based_path = False)
     libraries_dir_artifact = ctx.actions.declare_output("libraries", dir = True)
+    # Same jars as libraries_dir_artifact, but symlinked in one flat directory
+    # keyed by basename instead of their full maven path ("com/mojang/...").
+    # A directory of nested subdirectories doesn't work as a javac/java `-cp
+    # <dir>/*` wildcard entry (that only picks up jars directly inside the
+    # given directory) - this flat layout does, so java_library.bzl's
+    # `prebuilt_jar_dirs` can use it as Minecraft's own compile-time classpath
+    # (DataFixerUpper, fastutil, ...) without needing to enumerate every jar
+    # by name (the exact set/versions vary release to release).
+    libraries_flat_dir_artifact = ctx.actions.declare_output("libraries_flat", dir = True)
     launch_info_artifact = ctx.actions.declare_output("launch_info.json", has_content_based_path = False)
 
     def derive_version_json_contents(ctx: AnalysisContext, dynamic_artifacts, outputs):
@@ -111,6 +120,10 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
                 sha1=sha1,
             )
         ctx.actions.symlinked_dir(outputs[libraries_dir_artifact].as_output(), libraries)
+        libraries_flat = {}
+        for lib_name, artifact in libraries.items():
+            libraries_flat[lib_name.split("/")[-1]] = artifact
+        ctx.actions.symlinked_dir(outputs[libraries_flat_dir_artifact].as_output(), libraries_flat)
 
         # A tiny sidecar with the bits of version.json that things like a
         # client dev launcher need but that aren't otherwise materialized as
@@ -131,6 +144,7 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
             server_jar_artifact.as_output(),
             asset_index_artifact.as_output(),
             libraries_dir_artifact.as_output(),
+            libraries_flat_dir_artifact.as_output(),
             launch_info_artifact.as_output(),
         ],
         f=derive_version_json_contents,
@@ -141,6 +155,7 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
             sub_targets={
                 "asset_index":  [DefaultInfo(default_output=asset_index_artifact)],
                 "libraries": [DefaultInfo(default_output=libraries_dir_artifact)],
+                "libraries_flat": [DefaultInfo(default_output=libraries_flat_dir_artifact)],
             },
         ),
         MinecraftInfo(

@@ -68,14 +68,79 @@ fabric_loader = rule(
     },
 )
 
+def _fabric_api_impl(ctx: AnalysisContext) -> list[Provider]:
+    jar = ctx.actions.declare_output("fabric-api-{}.jar".format(ctx.attrs.version), has_content_based_path = False)
+    ctx.actions.download_file(
+        jar.as_output(),
+        "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/{v}/fabric-api-{v}.jar".format(v = ctx.attrs.version),
+        sha1 = ctx.attrs.sha1,
+        has_content_based_path = False,
+    )
+    return [
+        DefaultInfo(default_output = jar),
+        JavaLibraryInfo(jar = jar, classpath = [jar]),
+    ]
+
+fabric_api = rule(
+    doc = """Downloads the Fabric API "fat jar" (all its submodules jar-in-jar'd
+    together under META-INF/jars/, per its fabric.mod.json's "jars" list) for
+    a given Minecraft version from the Fabric maven.
+
+    Fabric Loader unpacks/loads those nested jars itself at runtime, so this
+    is usable directly as a `fabric_dev_launcher(extra_mods = [...])` entry to
+    get Fabric API's own mixins (e.g. the ones that keep vanilla registries
+    like BuiltInRegistries.ITEM open to plain Registry.register() calls from
+    mod code, working around newer per-registry "intrusive holder" freezing
+    that happens before Fabric Loader ever calls mod entrypoints) into a dev
+    run, without writing any Fabric API Java code of your own.
+
+    Note: since the actual API classes live inside the nested jars (not at the
+    fat jar's own root), this is *not* usable as a compile_only_deps entry if
+    you need to call Fabric API classes directly from your own mod code - for
+    that you'd need the specific submodule jar(s) you need pulled out of
+    META-INF/jars/ individually.
+    """,
+    impl = _fabric_api_impl,
+    attrs = {
+        "sha1": attrs.string(doc = "sha1 of fabric-api-<version>.jar, from https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/<version>/fabric-api-<version>.jar.sha1"),
+        "version": attrs.string(),
+    },
+)
+
+def _fabric_api_module_impl(ctx: AnalysisContext) -> list[Provider]:
+    """Download one compile-visible Fabric API module (not the jar-in-jar root)."""
+    jar = ctx.actions.declare_output(ctx.attrs.artifact + "-" + ctx.attrs.version + ".jar", has_content_based_path = False)
+    ctx.actions.download_file(
+        jar.as_output(),
+        "https://maven.fabricmc.net/net/fabricmc/fabric-api/{a}/{v}/{a}-{v}.jar".format(
+            a = ctx.attrs.artifact,
+            v = ctx.attrs.version,
+        ),
+        sha1 = ctx.attrs.sha1,
+        has_content_based_path = False,
+    )
+    return [DefaultInfo(default_output = jar), JavaLibraryInfo(jar = jar, classpath = [jar])]
+
+fabric_api_module = rule(
+    doc = "Downloads one named Fabric API module for compile-only use.",
+    impl = _fabric_api_module_impl,
+    attrs = {
+        "artifact": attrs.string(),
+        "sha1": attrs.string(),
+        "version": attrs.string(),
+    },
+)
+
 def fabric_mod(
         name,
         srcs = [],
         resources = [],
+        resource_map = {},
         fabric_mod_json = None,
         mixin_configs = {},
         deps = [],
         compile_only_deps = [],
+        compile_only_lib_dirs = [],
         java_version = "21",
         visibility = None):
     """A Fabric mod: java_library()'s srcs/resources plumbing, plus fabric.mod.json,
@@ -88,6 +153,20 @@ def fabric_mod(
     `compile_only_deps` (e.g. a minecraft_merged_jar() or fabric_loader()) are
     only used to build the classpath for javac; they are not bundled into the
     output jar since Fabric Loader supplies the game + itself at runtime.
+
+    `compile_only_lib_dirs` (e.g. a minecraft_version()'s `[libraries]`
+    sub-target) are directories full of jars added to javac's classpath as a
+    `<dir>/*` wildcard each - e.g. the vanilla libraries (DataFixerUpper,
+    fastutil, ...) that the merged Minecraft jar's own class files reference
+    but doesn't bundle. Like `compile_only_deps`, never bundled into the
+    output jar.
+
+    `resource_map` is a dict of {jar-root dest path: source}, same shape as
+    `mixin_configs`, for any other resources (item models, item definitions,
+    lang files, ...) whose jar-relative path doesn't match `resources`'
+    short_path-based placement - e.g. assets/ files living under
+    src/main/resources/assets/... on disk but needing to land at assets/...
+    (not src/main/resources/assets/...) in the jar.
 
     `mixin_configs` is a dict of {jar-root dest path: source} for Mixin config
     JSON files (e.g. {"examplemod.mixins.json": "src/main/resources/examplemod.mixins.json"}).
@@ -102,15 +181,16 @@ def fabric_mod(
     repo's unobfuscated snapshot; mixin target class/method names are just
     the real Mojang-mapped names.
     """
-    resource_map = dict(mixin_configs)
+    all_resources = dict(mixin_configs)
+    all_resources.update(resource_map)
     if fabric_mod_json:
-        resource_map["fabric.mod.json"] = fabric_mod_json
+        all_resources["fabric.mod.json"] = fabric_mod_json
 
     java_library(
         name = name,
         srcs = srcs,
         resources = resources,
-        resource_map = resource_map,
+        resource_map = all_resources,
         # compile_only_deps go through `deps`, not `prebuilt_jars`: java_library's
         # output jar is only ever packaged from *this* rule's own srcs/resources,
         # never from deps' jars, so routing them through `deps` still gets us
@@ -120,6 +200,7 @@ def fabric_mod(
         # own classpath includes its runtime deps (Sponge Mixin, ASM,
         # MixinExtras), which @Mixin-annotated mod code needs to compile against.
         deps = deps + compile_only_deps,
+        prebuilt_jar_dirs = compile_only_lib_dirs,
         java_version = java_version,
         visibility = visibility,
     )
