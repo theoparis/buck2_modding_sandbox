@@ -39,9 +39,7 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
     # Crawl version json and get the asset index, jars, mappings, and libs
     asset_index_artifact = ctx.actions.declare_output("asset_index.json")
     client_jar_artifact = ctx.actions.declare_output("client.jar")
-    client_mappings_artifact = ctx.actions.declare_output("client.txt")
     server_jar_artifact = ctx.actions.declare_output("server.jar")
-    server_mappings_artifact = ctx.actions.declare_output("server.txt")
     libraries_dir_artifact = ctx.actions.declare_output("libraries", dir = True)
 
     def derive_version_json_contents(ctx: AnalysisContext, dynamic_artifacts, outputs):
@@ -57,19 +55,9 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
             sha1=version_json["downloads"]["client"]["sha1"],
         )
         ctx.actions.download_file(
-            outputs[client_mappings_artifact].as_output(),
-            version_json["downloads"]["client_mappings"]["url"],
-            sha1=version_json["downloads"]["client_mappings"]["sha1"],
-        )
-        ctx.actions.download_file(
             outputs[server_jar_artifact].as_output(),
             version_json["downloads"]["server"]["url"],
             sha1=version_json["downloads"]["server"]["sha1"],
-        )
-        ctx.actions.download_file(
-            outputs[server_mappings_artifact].as_output(),
-            version_json["downloads"]["server_mappings"]["url"],
-            sha1=version_json["downloads"]["server_mappings"]["sha1"],
         )
         libraries = {}
         for library in version_json["libraries"]:
@@ -87,9 +75,7 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
         inputs=[],
         outputs=[
             client_jar_artifact.as_output(),
-            client_mappings_artifact.as_output(),
             server_jar_artifact.as_output(),
-            server_mappings_artifact.as_output(),
             asset_index_artifact.as_output(),
             libraries_dir_artifact.as_output(),
         ],
@@ -99,8 +85,6 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
         DefaultInfo(
             default_outputs=[client_jar_artifact, server_jar_artifact],
             sub_targets={
-                "client_mappings":  [DefaultInfo(default_output=client_mappings_artifact)],
-                "server_mappings":  [DefaultInfo(default_output=server_mappings_artifact)],
                 "asset_index":  [DefaultInfo(default_output=asset_index_artifact)],
                 "libraries": [DefaultInfo(default_output=libraries_dir_artifact)],
             },
@@ -108,9 +92,7 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
         MinecraftInfo(
             version_json=version_json_artifact,
             client_jar=client_jar_artifact,
-            client_mappings=client_mappings_artifact,
             server_jar=server_jar_artifact,
-            server_mappings=server_mappings_artifact,
             asset_index=asset_index_artifact,
             libraries_dir=libraries_dir_artifact,
         ),
