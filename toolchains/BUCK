@@ -1,6 +1,7 @@
 load("@prelude//toolchains:genrule.bzl", "system_genrule_toolchain")
 load("@prelude//toolchains:python.bzl", "system_python_toolchain")
 load("@prelude//toolchains:python.bzl", "system_python_bootstrap_toolchain")
+load(":java.bzl", "system_java_toolchain")
 
 system_genrule_toolchain(
     name = "genrule",
@@ -13,4 +14,8 @@ system_python_toolchain(
 system_python_bootstrap_toolchain(                                                                                             
     name = "python_bootstrap",                                                                                                     
     visibility = ["PUBLIC"],                                                                                             
+)
+system_java_toolchain(
+    name = "java",
+    visibility = ["PUBLIC"],
 )

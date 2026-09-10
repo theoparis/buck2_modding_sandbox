@@ -17,7 +17,7 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
     requested_version = ctx.attrs.requested_version
 
     # Get version json
-    version_json_artifact = ctx.actions.declare_output(requested_version + ".json")
+    version_json_artifact = ctx.actions.declare_output(requested_version + ".json", has_content_based_path = False)
     def derive_version_json(ctx: AnalysisContext, dynamic_artifacts, outputs):
         # Read the version manifest and download the version.json we desired
         manifest_json = dynamic_artifacts[version_manifest].read_json()
@@ -37,9 +37,9 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
     )
 
     # Crawl version json and get the asset index, jars, mappings, and libs
-    asset_index_artifact = ctx.actions.declare_output("asset_index.json")
-    client_jar_artifact = ctx.actions.declare_output("client.jar")
-    server_jar_artifact = ctx.actions.declare_output("server.jar")
+    asset_index_artifact = ctx.actions.declare_output("asset_index.json", has_content_based_path = False)
+    client_jar_artifact = ctx.actions.declare_output("client.jar", has_content_based_path = False)
+    server_jar_artifact = ctx.actions.declare_output("server.jar", has_content_based_path = False)
     libraries_dir_artifact = ctx.actions.declare_output("libraries", dir = True)
 
     def derive_version_json_contents(ctx: AnalysisContext, dynamic_artifacts, outputs):
@@ -65,7 +65,7 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
                 continue
             lib_name = library["downloads"]["artifact"]["path"]
             libraries[lib_name] = ctx.actions.download_file(
-                lib_name,
+                ctx.actions.declare_output(lib_name, has_content_based_path = False).as_output(),
                 library["downloads"]["artifact"]["url"],
                 sha1=library["downloads"]["artifact"]["sha1"],
             )

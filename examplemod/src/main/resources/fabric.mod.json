@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "examplemod",
+  "version": "0.1.0",
+  "name": "Example Mod",
+  "description": "A tiny Fabric mod built with Buck 2, no Gradle/Loom.",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.example.examplemod.ExampleMod"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.0",
+    "minecraft": "*"
+  }
+}

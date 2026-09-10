@@ -1,0 +1,17 @@
+load("//fabric.bzl", "fabric_mod")
+
+export_file(
+    name = "fabric.mod.json",
+    src = "src/main/resources/fabric.mod.json",
+)
+
+fabric_mod(
+    name = "examplemod",
+    srcs = glob(["src/main/java/**/*.java"]),
+    fabric_mod_json = ":fabric.mod.json",
+    compile_only_deps = [
+        "//:26.3-pre-3-merged",
+        "//:fabric-loader",
+    ],
+    visibility = ["PUBLIC"],
+)

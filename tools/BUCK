@@ -1,0 +1,5 @@
+export_file(
+    name = "merge_jars.py",
+    src = "merge_jars.py",
+    visibility = ["PUBLIC"],
+)

@@ -23,6 +23,7 @@ def _assets_impl(ctx: AnalysisContext):
                     download_name,
                     "https://resources.download.minecraft.net/" + sharded_hash,
                     sha1=hash,
+                    has_content_based_path=False,
                 )
         # Gather up all the downloads into a directory
         ctx.actions.symlinked_dir(
