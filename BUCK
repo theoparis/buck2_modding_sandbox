@@ -18,6 +18,7 @@ minecraft_version(
 minecraft_assets(
     name = "26.3-pre-3-assets",
     minecraft_version = ":26.3-pre-3",
+    visibility = ["PUBLIC"],
 )
 
 minecraft_merged_jar(

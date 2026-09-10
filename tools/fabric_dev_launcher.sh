@@ -11,6 +11,9 @@
 #   $5 mods_dir           dir of mod jars (each with a fabric.mod.json at its root)
 #   $6 main_class         net.fabricmc.loader.impl.launch.knot.Knot{Client,Server}
 #   $7 run_dir            working directory to launch from (world save, logs, etc land here)
+#   $8 side               "client" or "server"
+#   $9 assets_dir         (client only, else "-") output of minecraft_assets()
+#   $10 launch_info_json  (client only, else "-") output of minecraft_version()'s launch_info
 #   -- everything after "--" is forwarded to Minecraft/the JVM as-is.
 set -euo pipefail
 
@@ -21,7 +24,10 @@ game_jar="$4"
 mods_dir="$5"
 main_class="$6"
 run_dir="$7"
-shift 7
+side="$8"
+assets_dir="$9"
+launch_info_json="${10}"
+shift 10
 
 extra_args=()
 if [ "${1:-}" = "--" ]; then
@@ -50,14 +56,37 @@ if [ ! -e eula.txt ]; then
   echo "eula=true" > eula.txt
 fi
 
-echo "== fabric dev launcher ==" >&2
+game_args=()
+jvm_args=()
+if [ "$side" = "client" ]; then
+  version_id=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['id'])" "$launch_info_json")
+  asset_index_id=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['asset_index_id'])" "$launch_info_json")
+  game_args=(
+    --username "DevPlayer"
+    --version "$version_id"
+    --gameDir "."
+    --assetsDir "$assets_dir"
+    --assetIndex "$asset_index_id"
+    --uuid "00000000-0000-0000-0000-000000000000"
+    --accessToken "0"
+    --userType "legacy"
+    --versionType "release"
+  )
+  # LWJGL natives + JNA/Unsafe usage trip JDK 24+'s native-access warnings;
+  # silence them for a clean dev console.
+  jvm_args=(--enable-native-access=ALL-UNNAMED)
+fi
+
+echo "== fabric dev launcher ($side) ==" >&2
 echo "main class: $main_class" >&2
 echo "game jar:   $game_jar" >&2
 echo "run dir:    $run_dir" >&2
 
 exec java \
+  "${jvm_args[@]}" \
   -Dfabric.development=true \
   -Dfabric.gameJarPath="$game_jar" \
   -cp "$cp" \
   "$main_class" \
+  "${game_args[@]}" \
   "${extra_args[@]}"

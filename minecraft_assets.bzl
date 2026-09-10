@@ -3,10 +3,12 @@ load("//minecraft_info.bzl", "MinecraftInfo")
 def _assets_impl(ctx: AnalysisContext):
     version = ctx.attrs.minecraft_version
     asset_index_artifact = version[MinecraftInfo].asset_index
+    launch_info_artifact = version[MinecraftInfo].launch_info
 
     assets_dir_artifact = ctx.actions.declare_output("assets", dir=True)
     def derive_assets(ctx: AnalysisContext, dynamic_artifacts, outputs):
         asset_index = dynamic_artifacts[asset_index_artifact].read_json()
+        launch_info = dynamic_artifacts[launch_info_artifact].read_json()
 
         downloads = {}
         # XXX: is the pretty name used in modern versions? if so, how?
@@ -25,6 +27,12 @@ def _assets_impl(ctx: AnalysisContext):
                     sha1=hash,
                     has_content_based_path=False,
                 )
+
+        # The vanilla/Fabric client also expects the raw asset index itself
+        # at assets/indexes/<assetIndexId>.json (it's how it maps asset
+        # paths -> object hashes at runtime), so include it too.
+        downloads["indexes/" + launch_info["asset_index_id"] + ".json"] = asset_index_artifact
+
         # Gather up all the downloads into a directory
         ctx.actions.symlinked_dir(
             outputs[assets_dir_artifact].as_output(),
@@ -32,7 +40,7 @@ def _assets_impl(ctx: AnalysisContext):
         )
 
     ctx.actions.dynamic_output(
-        dynamic=[asset_index_artifact],
+        dynamic=[asset_index_artifact, launch_info_artifact],
         inputs=[],
         outputs=[assets_dir_artifact.as_output()],
         f=derive_assets,

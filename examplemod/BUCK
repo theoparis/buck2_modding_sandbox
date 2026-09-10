@@ -24,3 +24,13 @@ fabric_dev_launcher(
     fabric_loader = "//:fabric-loader",
     side = "server",
 )
+
+fabric_dev_launcher(
+    name = "run_client",
+    mod = ":examplemod",
+    minecraft_version = "//:26.3-pre-3",
+    merged_jar = "//:26.3-pre-3-merged",
+    fabric_loader = "//:fabric-loader",
+    assets = "//:26.3-pre-3-assets",
+    side = "client",
+)

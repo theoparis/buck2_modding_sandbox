@@ -133,6 +133,15 @@ def _fabric_dev_launcher_impl(ctx: AnalysisContext) -> list[Provider]:
 
     main_class = "net.fabricmc.loader.impl.launch.knot.KnotServer" if ctx.attrs.side == "server" else "net.fabricmc.loader.impl.launch.knot.KnotClient"
 
+    if ctx.attrs.side == "client":
+        if not ctx.attrs.assets:
+            fail("fabric_dev_launcher(side = \"client\") requires `assets` (a minecraft_assets() target)")
+        assets_arg = ctx.attrs.assets
+        launch_info_arg = mc_info.launch_info
+    else:
+        assets_arg = "-"
+        launch_info_arg = "-"
+
     run_info = RunInfo(args = cmd_args([
         "bash",
         ctx.attrs._launcher_script,
@@ -143,6 +152,9 @@ def _fabric_dev_launcher_impl(ctx: AnalysisContext) -> list[Provider]:
         mods_dir,
         main_class,
         ctx.attrs.run_dir,
+        ctx.attrs.side,
+        assets_arg,
+        launch_info_arg,
     ]))
 
     return [DefaultInfo(), run_info]
@@ -159,6 +171,7 @@ fabric_dev_launcher = rule(
     """,
     impl = _fabric_dev_launcher_impl,
     attrs = {
+        "assets": attrs.option(attrs.source(), default = None, doc = "Output of a minecraft_assets() - required when side = \"client\""),
         "extra_mods": attrs.list(attrs.dep(providers = [JavaLibraryInfo]), default = []),
         "fabric_loader": attrs.dep(providers = [FabricLoaderInfo]),
         "merged_jar": attrs.source(doc = "Output of a minecraft_merged_jar()"),

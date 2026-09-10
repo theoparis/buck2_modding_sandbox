@@ -81,6 +81,31 @@ isn't obfuscated. Build it with:
 buck2 build //examplemod:examplemod
 ```
 
+### Dev launcher
+
+`fabric_dev_launcher()` in `fabric.bzl` assembles a runtime classpath (fabric-loader +
+its deps [ASM, Sponge Mixin, MixinExtras] + the target Minecraft version's own libraries
++ the merged game jar + your mod jar(s)) and directly invokes Fabric Loader's
+`Knot{Client,Server}` entrypoint - no installer, no `mods/` folder, no Gradle run configs.
+See `examplemod/BUCK` for `run_server`/`run_client` targets:
+
+```
+buck2 run //examplemod:run_server            # headless dedicated server, auto-accepts the EULA in its dev run dir
+buck2 run //examplemod:run_server -- --nogui
+buck2 run //examplemod:run_client             # needs a display; see caveat below
+```
+
+Both land you in a real, running game with the example mod loaded (you'll see `Hello
+from ExampleMod, built with Buck 2!` in the log) - Fabric Loader, Sponge Mixin, and the
+vanilla game all boot normally.
+
+Caveat for `run_client` on Linux/aarch64: Mojang's version.json only ever lists an x86_64
+`natives-linux` classifier for LWJGL, so a stock client launch crashes immediately in
+native library loading on an arm64 host. LWJGL itself does publish `natives-linux-arm64`
+builds on Maven Central, though (same trick tools like portable-mc's "LWJGL fix" use) -
+`minecraft_version.bzl` detects an aarch64 host (via `host_info()`) and transparently
+swaps in the upstream arm64 natives jars (by module) instead of Mojang's x86_64 ones.
+
 ## Implementation Notes
 
 Buck 2's documentation can be kind of opaque, so here's some random notes.
