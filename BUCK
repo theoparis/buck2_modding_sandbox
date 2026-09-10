@@ -58,3 +58,19 @@ fabric_api_module(
     sha1 = "e2443ff9b0fa12a3299be6a9a9d72f612c8df670",
     visibility = ["PUBLIC"],
 )
+
+fabric_api_module(
+    name = "fabric-networking-api-v1",
+    artifact = "fabric-networking-api-v1",
+    version = "6.3.8+fcdff87fa5",
+    sha1 = "0ae89224c57b35c5fe8fb63bd18a2b170557e2ff",
+    visibility = ["PUBLIC"],
+)
+
+fabric_api_module(
+    name = "fabric-rendering-v1",
+    artifact = "fabric-rendering-v1",
+    version = "27.0.13+fdb9bf40a5",
+    sha1 = "18572c75f3c19d0189483e1c10596909dd7f9fde",
+    visibility = ["PUBLIC"],
+)
