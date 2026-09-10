@@ -44,8 +44,21 @@ def _java_library_impl(ctx: AnalysisContext) -> list[Provider]:
             compile_cmd.add("-d", classes_dir.as_output())
             compile_cmd.add("--release", ctx.attrs.java_version)
             compile_cmd.add("-encoding", "UTF-8")
-            if classpath:
-                compile_cmd.add("-cp", cmd_args(classpath, delimiter = ":"))
+
+            # `classpath` is individual jar artifacts (deduped, from deps'
+            # transitive JavaLibraryInfo.classpath + prebuilt_jars). On top of
+            # that, `prebuilt_jar_dirs` are *directories* full of jars (e.g. a
+            # Minecraft version's `libraries/` dir) that we don't want to - or
+            # can't, since their contents are only known after a dynamic_output
+            # download step - enumerate individually; each becomes a single
+            # `<dir>/*` javac/java classpath wildcard entry instead (a
+            # long-standing `-cp`/`-classpath` feature: a trailing `/*`
+            # expands to every `.jar`/`.JAR` directly inside that directory).
+            cp_parts = list(classpath)
+            for lib_dir in ctx.attrs.prebuilt_jar_dirs:
+                cp_parts.append(cmd_args(lib_dir, format = "{}/*"))
+            if cp_parts:
+                compile_cmd.add("-cp", cmd_args(cp_parts, delimiter = ":"))
             compile_cmd.add(ctx.attrs.srcs)
             ctx.actions.run(compile_cmd, category = "javac")
             jar_content_dirs.append(classes_dir)
@@ -94,6 +107,7 @@ java_library = rule(
         "java_version": attrs.string(default = "21", doc = "Passed to javac's --release"),
         "main_class": attrs.option(attrs.string(), default = None),
         "prebuilt_jars": attrs.list(attrs.source(), default = [], doc = "Raw jars (e.g. downloaded artifacts) to add to the classpath/output without going through another java_library()"),
+        "prebuilt_jar_dirs": attrs.list(attrs.source(), default = [], doc = "Directories full of jars (e.g. a minecraft_version()'s `[libraries]` sub-target) to add to javac's compile classpath as a `<dir>/*` wildcard entry each. Compile-classpath only - never bundled into the output jar, unlike `resources`."),
         "resource_map": attrs.dict(attrs.string(), attrs.source(), default = {}, doc = "Resources placed at an explicit jar-relative path (e.g. {'fabric.mod.json': ':fmj'}), for files whose short_path doesn't match where they need to land in the jar."),
         "resources": attrs.list(attrs.source(), default = []),
         "srcs": attrs.list(attrs.source(), default = []),
