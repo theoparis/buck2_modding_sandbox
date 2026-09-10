@@ -68,6 +68,14 @@ fabric_api_module(
 )
 
 fabric_api_module(
+    name = "fabric-lifecycle-events-v1",
+    artifact = "fabric-lifecycle-events-v1",
+    version = "4.1.9+ffef5f67a5",
+    sha1 = "15e52b6b49b76f5c3948f224ea934dc4600ebbea",
+    visibility = ["PUBLIC"],
+)
+
+fabric_api_module(
     name = "fabric-rendering-v1",
     artifact = "fabric-rendering-v1",
     version = "27.0.13+fdb9bf40a5",
