@@ -99,6 +99,13 @@ Both land you in a real, running game with the example mod loaded (you'll see `H
 from ExampleMod, built with Buck 2!` in the log) - Fabric Loader, Sponge Mixin, and the
 vanilla game all boot normally.
 
+Each launcher runs out of a persistent working directory (world save, logs, options,
+`server.properties`, ...) under a top-level `run/` folder (e.g. `run/run_server`,
+`run/run_client`) - deliberately *not* under `buck-out`, so a `buck2 clean` doesn't wipe
+your dev world, and each target gets its own dir by default (`run/<target name>`) so
+running both client and server don't clobber each other's state. Override with
+`fabric_dev_launcher(run_dir = "...")` if you want something else. `run/` is gitignored.
+
 ### Mixin support
 
 Already wired up, no extra plumbing needed - `fabric_loader()`'s own runtime

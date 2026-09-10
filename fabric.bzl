@@ -155,6 +155,13 @@ def _fabric_dev_launcher_impl(ctx: AnalysisContext) -> list[Provider]:
         assets_arg = "-"
         launch_info_arg = "-"
 
+    # Defaults to a per-target dir under a top-level run/ folder (like a
+    # typical Fabric/Loom dev workspace's run/client, run/server), not
+    # anywhere under buck-out - world saves/logs/options should survive a
+    # `buck2 clean`, and client/server (or multiple mods) must not default to
+    # the same dir and clobber each other's state.
+    run_dir = ctx.attrs.run_dir or ("run/" + ctx.attrs.name)
+
     run_info = RunInfo(args = cmd_args([
         "bash",
         ctx.attrs._launcher_script,
@@ -164,7 +171,7 @@ def _fabric_dev_launcher_impl(ctx: AnalysisContext) -> list[Provider]:
         ctx.attrs.merged_jar,
         mods_dir,
         main_class,
-        ctx.attrs.run_dir,
+        run_dir,
         ctx.attrs.side,
         assets_arg,
         launch_info_arg,
@@ -190,7 +197,7 @@ fabric_dev_launcher = rule(
         "merged_jar": attrs.source(doc = "Output of a minecraft_merged_jar()"),
         "minecraft_version": attrs.dep(providers = [MinecraftInfo]),
         "mod": attrs.dep(providers = [JavaLibraryInfo]),
-        "run_dir": attrs.string(default = "buck-out/fabric-dev-run", doc = "Working directory the game is launched from (world save, logs, run-time config land here). Relative paths are resolved from wherever `buck2 run` itself is invoked."),
+        "run_dir": attrs.option(attrs.string(), default = None, doc = "Working directory the game is launched from (world save, logs, run-time config land here) - persists across runs/rebuilds. Defaults to run/<target name> (e.g. run/run_server), *not* anywhere under buck-out, so `buck2 clean` doesn't wipe it and different targets don't collide. Relative paths are resolved from wherever `buck2 run` itself is invoked."),
         "side": attrs.enum(["client", "server"], default = "server", doc = "client needs LWJGL natives and a display and isn't wired up here yet - server is the practical option for headless dev/test."),
         "_launcher_script": attrs.source(default = "//tools:fabric_dev_launcher.sh"),
     },
