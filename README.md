@@ -137,12 +137,11 @@ add `-processor org.spongepowered.tools.mixin.MixinAnnotationProcessor` (with
 `-AoutRefMapFile=...`) to the compile step and reference the generated refmap
 from the mixin config's `"refmap"` key.
 
-Caveat for `run_client` on Linux/aarch64: Mojang's version.json only ever lists an x86_64
-`natives-linux` classifier for LWJGL, so a stock client launch crashes immediately in
-native library loading on an arm64 host. LWJGL itself does publish `natives-linux-arm64`
-builds on Maven Central, though (same trick tools like portable-mc's "LWJGL fix" use) -
-`minecraft_version.bzl` detects an aarch64 host (via `host_info()`) and transparently
-swaps in the upstream arm64 natives jars (by module) instead of Mojang's x86_64 ones.
+`minecraft_version.bzl` selects version-manifest libraries using their operating-system
+rules, so `run_client` receives macOS-native LWJGL jars on macOS rather than the
+Linux-only entries. On Linux/aarch64, Mojang only publishes x86_64
+`natives-linux` jars; the rule transparently replaces those with LWJGL's upstream
+`natives-linux-arm64` jars from Maven Central.
 
 ## Implementation Notes
 
