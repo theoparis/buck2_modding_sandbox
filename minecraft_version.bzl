@@ -20,8 +20,35 @@ _LWJGL_LINUX_ARM64_SHA1 = {
     "lwjgl-vma": "0a9e20e7d8ae4d0106cd23ae58a1b72ca151c49f",
 }
 
+def _host_os_name() -> str:
+    if host_info().os.is_linux:
+        return "linux"
+    if host_info().os.is_macos:
+        return "osx"
+    if host_info().os.is_windows:
+        return "windows"
+    fail("Unsupported host operating system")
+
 def _is_host_linux_arm64() -> bool:
     return host_info().os.is_linux and host_info().arch.is_aarch64
+
+def _library_rules_match(rules):
+    # An unrestricted library is available everywhere. Version-manifest
+    # libraries with rules use ordered allow/disallow decisions; only rules
+    # matching this host can change the default unavailable state.
+    if not rules:
+        return True
+    host_os = _host_os_name()
+    matches = False
+    for rule in rules:
+        os = rule.get("os")
+        if os and os.get("name") != host_os:
+            continue
+        if rule["action"] == "allow":
+            matches = True
+        elif rule["action"] == "disallow":
+            matches = False
+    return matches
 
 def _lwjgl_linux_arm64_fixup(lib_name: str, url: str, sha1: str) -> (str, str):
     # lib_name looks like "org/lwjgl/lwjgl-opengl/3.4.3/lwjgl-opengl-3.4.3-natives-linux.jar"
@@ -34,15 +61,6 @@ def _lwjgl_linux_arm64_fixup(lib_name: str, url: str, sha1: str) -> (str, str):
         return url, sha1
     fixed_url = "https://repo1.maven.org/maven2/" + lib_name.replace("-natives-linux.jar", "-natives-linux-arm64.jar")
     return fixed_url, fixed_sha1
-
-def _library_rules_match(rules):
-    for rule in rules:
-        # Assert action is always "allow"? That's the only thing appearing in the json
-        os_name = rule["os"]["name"]
-        # FIXME: Non-linux platform support
-        if os_name != "linux":
-            return False
-    return True
 
 
 def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
@@ -76,6 +94,15 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
     client_jar_artifact = ctx.actions.declare_output("client.jar", has_content_based_path = False)
     server_jar_artifact = ctx.actions.declare_output("server.jar", has_content_based_path = False)
     libraries_dir_artifact = ctx.actions.declare_output("libraries", dir = True)
+    # Same jars as libraries_dir_artifact, but symlinked in one flat directory
+    # keyed by basename instead of their full maven path ("com/mojang/...").
+    # A directory of nested subdirectories doesn't work as a javac/java `-cp
+    # <dir>/*` wildcard entry (that only picks up jars directly inside the
+    # given directory) - this flat layout does, so java_library.bzl's
+    # `prebuilt_jar_dirs` can use it as Minecraft's own compile-time classpath
+    # (DataFixerUpper, fastutil, ...) without needing to enumerate every jar
+    # by name (the exact set/versions vary release to release).
+    libraries_flat_dir_artifact = ctx.actions.declare_output("libraries_flat", dir = True)
     launch_info_artifact = ctx.actions.declare_output("launch_info.json", has_content_based_path = False)
 
     def derive_version_json_contents(ctx: AnalysisContext, dynamic_artifacts, outputs):
@@ -111,6 +138,10 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
                 sha1=sha1,
             )
         ctx.actions.symlinked_dir(outputs[libraries_dir_artifact].as_output(), libraries)
+        libraries_flat = {}
+        for lib_name, artifact in libraries.items():
+            libraries_flat[lib_name.split("/")[-1]] = artifact
+        ctx.actions.symlinked_dir(outputs[libraries_flat_dir_artifact].as_output(), libraries_flat)
 
         # A tiny sidecar with the bits of version.json that things like a
         # client dev launcher need but that aren't otherwise materialized as
@@ -131,6 +162,7 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
             server_jar_artifact.as_output(),
             asset_index_artifact.as_output(),
             libraries_dir_artifact.as_output(),
+            libraries_flat_dir_artifact.as_output(),
             launch_info_artifact.as_output(),
         ],
         f=derive_version_json_contents,
@@ -141,6 +173,7 @@ def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
             sub_targets={
                 "asset_index":  [DefaultInfo(default_output=asset_index_artifact)],
                 "libraries": [DefaultInfo(default_output=libraries_dir_artifact)],
+                "libraries_flat": [DefaultInfo(default_output=libraries_flat_dir_artifact)],
             },
         ),
         MinecraftInfo(

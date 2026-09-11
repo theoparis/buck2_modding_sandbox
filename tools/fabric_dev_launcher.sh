@@ -75,6 +75,11 @@ if [ "$side" = "client" ]; then
   # LWJGL natives + JNA/Unsafe usage trip JDK 24+'s native-access warnings;
   # silence them for a clean dev console.
   jvm_args=(--enable-native-access=ALL-UNNAMED)
+  # SDL must initialize on macOS's first process thread. Mojang includes this
+  # in the version manifest's macOS JVM arguments; invoke Java the same way.
+  if [ "$(uname -s)" = "Darwin" ]; then
+    jvm_args=(-XstartOnFirstThread "${jvm_args[@]}")
+  fi
 fi
 
 echo "== fabric dev launcher ($side) ==" >&2
