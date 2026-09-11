@@ -20,8 +20,35 @@ _LWJGL_LINUX_ARM64_SHA1 = {
     "lwjgl-vma": "0a9e20e7d8ae4d0106cd23ae58a1b72ca151c49f",
 }
 
+def _host_os_name() -> str:
+    if host_info().os.is_linux:
+        return "linux"
+    if host_info().os.is_macos:
+        return "osx"
+    if host_info().os.is_windows:
+        return "windows"
+    fail("Unsupported host operating system")
+
 def _is_host_linux_arm64() -> bool:
     return host_info().os.is_linux and host_info().arch.is_aarch64
+
+def _library_rules_match(rules):
+    # An unrestricted library is available everywhere. Version-manifest
+    # libraries with rules use ordered allow/disallow decisions; only rules
+    # matching this host can change the default unavailable state.
+    if not rules:
+        return True
+    host_os = _host_os_name()
+    matches = False
+    for rule in rules:
+        os = rule.get("os")
+        if os and os.get("name") != host_os:
+            continue
+        if rule["action"] == "allow":
+            matches = True
+        elif rule["action"] == "disallow":
+            matches = False
+    return matches
 
 def _lwjgl_linux_arm64_fixup(lib_name: str, url: str, sha1: str) -> (str, str):
     # lib_name looks like "org/lwjgl/lwjgl-opengl/3.4.3/lwjgl-opengl-3.4.3-natives-linux.jar"
@@ -34,15 +61,6 @@ def _lwjgl_linux_arm64_fixup(lib_name: str, url: str, sha1: str) -> (str, str):
         return url, sha1
     fixed_url = "https://repo1.maven.org/maven2/" + lib_name.replace("-natives-linux.jar", "-natives-linux-arm64.jar")
     return fixed_url, fixed_sha1
-
-def _library_rules_match(rules):
-    for rule in rules:
-        # Assert action is always "allow"? That's the only thing appearing in the json
-        os_name = rule["os"]["name"]
-        # FIXME: Non-linux platform support
-        if os_name != "linux":
-            return False
-    return True
 
 
 def _minecraft_version_impl(ctx: AnalysisContext) -> list[Provider]:
